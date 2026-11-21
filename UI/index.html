@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="ChurnLens scores e-commerce customer churn with a tuned Gradient Boosting model. Explore risk, drivers, and retention actions." />
+  <meta name="theme-color" content="#f4f5f1" />
+  <title>ChurnLens — Churn intelligence for e-commerce</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%230f6b5c'/%3E%3Cpath d='M9 20.5 13.5 16l3 3L23 11.5' fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  <link rel="preload" href="/assets/fonts/manrope.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin />
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("churnlens-theme");
+        var theme = saved === "light" || saved === "dark"
+          ? saved
+          : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.dataset.theme = theme;
+      } catch (error) {
+        document.documentElement.dataset.theme = "light";
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="/assets/styles.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header" id="top">
+    <div class="shell nav">
+      <a class="brand" href="#top" aria-label="ChurnLens home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 16.5 8 12l3 3 6-8" />
+            <path d="M17 7h3v3" />
+          </svg>
+        </span>
+        <span>ChurnLens</span>
+      </a>
+
+      <nav class="nav-links" aria-label="Primary">
+        <a href="#overview">Overview</a>
+        <a href="#predict">Predict</a>
+        <a href="#insights">Insights</a>
+        <a href="/docs" target="_blank" rel="noreferrer">API</a>
+      </nav>
+
+      <div class="nav-actions">
+        <span class="status-pill" title="The model is loaded and ready">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span>Model online</span>
+        </span>
+        <button class="icon-btn" id="theme-toggle" type="button" aria-label="Switch to dark mode" title="Switch theme">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4.2" />
+            <path d="M12 2.5v2.2M12 19.3v2.2M4.4 4.4l1.6 1.6M18 18l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.4 19.6 6 18M18 6l1.6-1.6" />
+          </svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20.5 14.6A8.6 8.6 0 0 1 9.4 3.5a8.6 8.6 0 1 0 11.1 11.1Z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- Hero -->
+    <section class="shell hero">
+      <div class="hero-copy reveal">
+        <p class="eyebrow"><span class="live-dot" aria-hidden="true"></span> Customer intelligence</p>
+        <h1>See churn <span class="mark">before</span> it happens.</h1>
+        <p class="lede">
+          Score any customer in milliseconds with a tuned Gradient Boosting model trained on
+          50,000 e-commerce profiles. Understand the signals, then act before they leave.
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#predict">
+            Score a customer
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+          </a>
+          <a class="btn btn-ghost" href="#insights">Explore the data</a>
+        </div>
+        <dl class="hero-meta">
+          <div><dt>F1 score</dt><dd id="hero-f1">—</dd></div>
+          <div><dt>ROC AUC</dt><dd id="hero-auc">—</dd></div>
+          <div><dt>Training rows</dt><dd>50,000</dd></div>
+        </dl>
+      </div>
+
+      <div class="hero-panel reveal" style="--delay: .08s">
+        <div class="panel-top">
+          <div>
+            <p class="panel-kicker">Portfolio pulse</p>
+            <h2>Churn at a glance</h2>
+          </div>
+          <span class="chip">Dataset</span>
+        </div>
+
+        <div class="donut-stage">
+          <svg class="donut" viewBox="0 0 120 120" role="img" aria-label="Churn share of all customers">
+            <circle class="donut-track" cx="60" cy="60" r="50" />
+            <circle class="donut-value" id="hero-donut" cx="60" cy="60" r="50" />
+          </svg>
+          <div class="donut-center">
+            <strong id="hero-churn-rate">—</strong>
+            <span>churn rate</span>
+          </div>
+        </div>
+
+        <div class="donut-legend">
+          <span><i class="swatch swatch-risk" aria-hidden="true"></i> Churned <strong id="hero-churned">—</strong></span>
+          <span><i class="swatch swatch-safe" aria-hidden="true"></i> Retained <strong id="hero-retained">—</strong></span>
+        </div>
+
+        <div class="mini-grid">
+          <div><span>Customers</span><strong id="hero-total">—</strong></div>
+          <div><span>Avg. LTV</span><strong id="hero-ltv">—</strong></div>
+          <div><span>Avg. tenure</span><strong id="hero-tenure">—</strong></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- KPI strip -->
+    <section class="shell kpi-strip reveal" id="overview" aria-label="Key metrics">
+      <article class="kpi">
+        <span class="kpi-label">Churn rate</span>
+        <strong id="kpi-churn">—</strong>
+        <span class="kpi-note">of all customers</span>
+      </article>
+      <article class="kpi">
+        <span class="kpi-label">Retained</span>
+        <strong id="kpi-retained">—</strong>
+        <span class="kpi-note">customers still active</span>
+      </article>
+      <article class="kpi">
+        <span class="kpi-label">Average LTV</span>
+        <strong id="kpi-ltv">—</strong>
+        <span class="kpi-note">per customer</span>
+      </article>
+      <article class="kpi">
+        <span class="kpi-label">Model accuracy</span>
+        <strong id="kpi-accuracy">—</strong>
+        <span class="kpi-note">held-out test split</span>
+      </article>
+      <article class="kpi">
+        <span class="kpi-label">Recall</span>
+        <strong id="kpi-recall">—</strong>
+        <span class="kpi-note">churners caught</span>
+      </article>
+    </section>
+
+    <!-- Prediction -->
+    <section class="shell section" id="predict">
+      <div class="section-head reveal">
+        <p class="eyebrow">Risk assessment</p>
+        <h2>Score a customer profile</h2>
+        <p>Adjust the signals below. The model returns a churn probability, the factors moving the score, and a next best action.</p>
+      </div>
+
+      <div class="predict-grid">
+        <form class="card form-card reveal" id="predict-form" novalidate>
+          <div class="form-head">
+            <div>
+              <h3>Customer snapshot</h3>
+              <p id="field-count">Loading signals…</p>
+            </div>
+            <div class="form-tools">
+              <button class="text-btn" type="button" id="sample-high">High-risk sample</button>
+              <button class="text-btn" type="button" id="sample-low">Low-risk sample</button>
+              <button class="text-btn" type="button" id="reset-btn">Reset</button>
+            </div>
+          </div>
+
+          <div class="tabbar" id="form-tabs" role="tablist" aria-label="Customer signal groups"></div>
+          <div class="form-fields" id="form-fields">
+            <div class="skeleton-grid" aria-hidden="true">
+              <span></span><span></span><span></span><span></span><span></span><span></span>
+            </div>
+          </div>
+
+          <div class="form-footer">
+            <p class="privacy-note"><span class="dot" aria-hidden="true"></span> Scored by your local FastAPI server</p>
+            <button class="btn btn-primary" type="submit" id="predict-btn">
+              <span class="btn-label">Assess churn risk</span>
+              <span class="spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+
+        <aside class="card result-card reveal" id="result-card" aria-live="polite">
+          <div class="result-empty" id="result-empty">
+            <div class="empty-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="8.4" />
+                <path d="M12 7.6v5l3.2 2" />
+              </svg>
+            </div>
+            <h3>Your scorecard appears here</h3>
+            <p>Load the high-risk sample or fill in a customer snapshot, then run an assessment.</p>
+            <ul class="empty-list">
+              <li>Churn probability and risk band</li>
+              <li>Top factors behind the score</li>
+              <li>Retention recommendations</li>
+            </ul>
+          </div>
+
+          <div class="result-content" id="result-content" hidden>
+            <div class="result-head">
+              <div>
+                <p class="eyebrow">Prediction</p>
+                <h3 id="result-title">—</h3>
+              </div>
+              <span class="risk-chip" id="risk-chip">—</span>
+            </div>
+
+            <div class="gauge" aria-hidden="true">
+              <svg viewBox="0 0 240 142">
+                <path class="gauge-track" d="M 28 120 A 92 92 0 0 1 212 120" />
+                <path class="gauge-fill" id="gauge-fill" d="M 28 120 A 92 92 0 0 1 212 120" />
+              </svg>
+              <div class="gauge-scale"><span>0%</span><span>50%</span><span>100%</span></div>
+              <div class="gauge-label">
+                <strong id="result-prob">—</strong>
+                <span>churn probability</span>
+              </div>
+            </div>
+
+            <div class="result-stats">
+              <div><span>Risk band</span><strong id="result-band">—</strong></div>
+              <div><span>Percentile</span><strong id="result-percentile">—</strong></div>
+              <div><span>Value at risk</span><strong id="result-var">—</strong></div>
+            </div>
+
+            <div class="result-block">
+              <div class="block-head">
+                <h4>What’s moving the score</h4>
+                <span class="hint">vs. a typical customer</span>
+              </div>
+              <div class="factor-list" id="factor-list"></div>
+            </div>
+
+            <div class="result-block">
+              <h4>Recommended next steps</h4>
+              <ul class="rec-list" id="rec-list"></ul>
+            </div>
+
+            <p class="result-note" id="result-note"></p>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- Insights -->
+    <section class="shell section" id="insights">
+      <div class="section-head reveal">
+        <p class="eyebrow">Portfolio insights</p>
+        <h2>The shape of churn</h2>
+        <p>Patterns from 50,000 customer records and a held-out test set of 10,000 predictions.</p>
+      </div>
+
+      <div class="charts-grid">
+        <article class="card chart-card reveal">
+          <header>
+            <h3>Churn rate by country</h3>
+            <p>Share of customers who churned</p>
+          </header>
+          <div class="bar-list" id="country-chart">
+            <div class="loading-line"></div><div class="loading-line"></div><div class="loading-line"></div>
+          </div>
+        </article>
+
+        <article class="card chart-card reveal">
+          <header>
+            <h3>Service calls &amp; churn</h3>
+            <p>Churn rate as support contacts increase</p>
+          </header>
+          <div class="line-chart" id="tenure-chart"></div>
+        </article>
+
+        <article class="card chart-card chart-wide reveal">
+          <header>
+            <h3>Predicted risk distribution</h3>
+            <p>Held-out test customers grouped by model probability</p>
+          </header>
+          <div class="histogram" id="risk-chart"></div>
+          <div class="chart-legend">
+            <span><i class="swatch swatch-safe" aria-hidden="true"></i> Low risk</span>
+            <span><i class="swatch swatch-warn" aria-hidden="true"></i> Elevated</span>
+            <span><i class="swatch swatch-risk" aria-hidden="true"></i> High risk</span>
+          </div>
+        </article>
+
+        <article class="card chart-card reveal">
+          <header>
+            <h3>What drives churn</h3>
+            <p>Top model features by importance</p>
+          </header>
+          <div class="bar-list importance-list" id="importance-chart"></div>
+        </article>
+
+        <article class="card chart-card reveal">
+          <header>
+            <h3>Model quality</h3>
+            <p>ROC curve on the held-out test set</p>
+          </header>
+          <div class="roc-chart" id="roc-chart"></div>
+          <div class="chart-foot">
+            <span>ROC AUC</span>
+            <strong id="auc-value">—</strong>
+          </div>
+        </article>
+
+        <article class="card chart-card chart-wide reveal">
+          <header>
+            <h3>Model benchmark</h3>
+            <p>Notebook comparison; the live model may differ slightly after retraining</p>
+          </header>
+          <div class="benchmark" id="benchmark-chart"></div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="shell footer-inner">
+      <div>
+        <a class="brand brand-sm" href="#top">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16.5 8 12l3 3 6-8" /><path d="M17 7h3v3" /></svg>
+          </span>
+          <span>ChurnLens</span>
+        </a>
+        <p>Churn scoring for the e-commerce dataset. Built with FastAPI, scikit-learn, and plain HTML/CSS/JS.</p>
+      </div>
+      <div class="footer-links">
+        <a href="/docs" target="_blank" rel="noreferrer">API docs</a>
+        <a href="#predict">Score a customer</a>
+        <a href="#insights">Insights</a>
+        <a href="https://github.com/Lavish09-Mehra" target="_blank" rel="noreferrer" aria-label="Lavish Mehra on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 2C6.48 2 2 6.58 2 12.26c0 4.54 2.87 8.39 6.84 9.75.5.09.68-.22.68-.49 0-.24-.01-.88-.01-1.73-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.89 1.56 2.34 1.11 2.91.85.09-.66.35-1.11.63-1.37-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.28 2.75 1.05A9.32 9.32 0 0 1 12 6.84c.85 0 1.71.12 2.51.35 1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.81-4.57 5.06.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.59.69.49A10.26 10.26 0 0 0 22 12.26C22 6.58 17.52 2 12 2Z" />
+          </svg>
+          GitHub
+        </a>
+        <a href="https://github.com/Lavish09-Mehra/eComm-Churn-Model" target="_blank" rel="noreferrer" aria-label="eComm Churn Model repository">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m8 6-5 6 5 6M16 6l5 6-5 6M14 4l-4 16" />
+          </svg>
+          Repository
+        </a>
+      </div>
+    </div>
+    <div class="shell footer-base">
+      <span id="footer-version">Model loading…</span>
+      <span>Demo use only — not financial advice.</span>
+    </div>
+  </footer>
+
+  <script src="/assets/app.js" defer></script>
+</body>
+</html>
